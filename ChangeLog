@@ -1,3 +1,7 @@
+00026   Merged with latest Chocolate Doom, v2.0.3.2
+        Quickstart works best if used in fullscreen with startup_delay
+        set to 0, then adjust Quickstart value to your preference.
+        Updated FLAC, OGG, PNG, Vorbis and SDL net libraries.
 00025   Merged with latest Chocolate Doom, v2.0.3.2 beta1
         Crash/overflow fix introduced by hires patch;
         cn_quickstart_delay, cn_timer_enable, startup_delay
