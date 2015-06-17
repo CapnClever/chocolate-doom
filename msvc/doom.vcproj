@@ -4,7 +4,7 @@
 	Version="9,00"
 	Name="Doom"
 	ProjectGUID="{8B744A3B-8F18-41A0-85A3-293816E85B6E}"
-	RootNamespace="ChocolateDoom"
+	RootNamespace="CompetitionDoom"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
