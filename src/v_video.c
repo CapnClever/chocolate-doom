@@ -103,9 +103,9 @@ void V_CopyRect(int srcx, int srcy, byte *source,
      || srcy < 0
      || srcy + height > SCREENHEIGHT 
      || destx < 0
-     || destx /* + width */ > SCREENWIDTH
+     || destx + width > SCREENWIDTH
      || desty < 0
-     || desty /* + height */ > SCREENHEIGHT)
+     || desty + height > SCREENHEIGHT)
     {
         I_Error ("Bad V_CopyRect");
     }
@@ -123,7 +123,7 @@ void V_CopyRect(int srcx, int srcy, byte *source,
 
     for ( ; height>0 ; height--) 
     { 
-        memcpy(dest, src, width); 
+        memcpy(dest, src, width * sizeof(*dest));
         src += SCREENWIDTH; 
         dest += SCREENWIDTH; 
     } 
@@ -172,11 +172,12 @@ void V_DrawPatch(int x, int y, patch_t *patch)
             return;
     }
 
-#ifdef RANGECHECK
+    // [crispy] ignore this rangecheck
+#ifdef RANGECHECK_NOTHANKS
     if (x < 0
-     || x /* + SHORT(patch->width) */ > ORIGWIDTH
+     || x + SHORT(patch->width) > ORIGWIDTH
      || y < 0
-     || y /* + SHORT(patch->height) */ > ORIGHEIGHT)
+     || y + SHORT(patch->height) > ORIGHEIGHT)
     {
         I_Error("Bad V_DrawPatch");
     }
@@ -835,6 +836,7 @@ void WritePCXfile(char *filename, byte *data,
     pcx->hres = SHORT(width);
     pcx->vres = SHORT(height);
     memset (pcx->palette,0,sizeof(pcx->palette));
+    pcx->reserved = 0;                  // PCX spec: reserved byte must be zero
     pcx->color_planes = 1;		// chunky image
     pcx->bytes_per_line = SHORT(width);
     pcx->palette_type = SHORT(2);	// not a grey scale
@@ -882,14 +884,20 @@ static void warning_fn(png_structp p, png_const_charp s)
 }
 
 void WritePNGfile(char *filename, byte *data,
-                  int width, int height,
+                  int inwidth, int inheight,
                   byte *palette)
 {
     png_structp ppng;
     png_infop pinfo;
     png_colorp pcolor;
     FILE *handle;
-    int i;
+    int i, j;
+    int width, height;
+    byte *rowbuf;
+
+    // scale up to accommodate aspect ratio correction
+    width = inwidth * 5;
+    height = inheight * 6;
 
     handle = fopen(filename, "wb");
     if (!handle)
@@ -936,9 +944,26 @@ void WritePNGfile(char *filename, byte *data,
 
     png_write_info(ppng, pinfo);
 
-    for (i = 0; i < SCREENHEIGHT; i++)
+    rowbuf = malloc(width);
+
+    if (rowbuf)
     {
-        png_write_row(ppng, data + i*SCREENWIDTH);
+        for (i = 0; i < SCREENHEIGHT; i++)
+        {
+            // expand the row 5x
+            for (j = 0; j < SCREENWIDTH; j++)
+            {
+                memset(rowbuf + j * 5, *(data + i*SCREENWIDTH + j), 5);
+            }
+
+            // write the row 6 times
+            for (j = 0; j < 6; j++)
+            {
+                png_write_row(ppng, rowbuf);
+            }
+        }
+
+        free(rowbuf);
     }
 
     png_write_end(ppng, pinfo);

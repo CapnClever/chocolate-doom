@@ -124,7 +124,6 @@ boolean         turbodetected[MAXPLAYERS];
  
 int             consoleplayer;          // player taking events and displaying 
 int             displayplayer;          // view being displayed 
-int             gametic; 
 int             levelstarttic;          // gametic at level start 
 int             totalkills, /*totalitems,*/ totalsecret;    // for intermission 
  
@@ -2329,7 +2328,8 @@ void G_DoPlayDemo (void)
                         "\n"
                         "*** You may need to upgrade your version "
                             "of Strife to v1.1 or later. ***\n"
-                        "    See: http://doomworld.com/files/patches.shtml\n"
+                        "    See: https://www.doomworld.com/classicdoom"
+                                  "/info/patches.php\n"
                         "    This appears to be %s.";
 
         I_Error(message, demoversion, STRIFE_VERSION,
@@ -2380,7 +2380,8 @@ void G_DoPlayDemo (void)
 void G_TimeDemo (char* name) 
 {
     //!
-    // @vanilla 
+    // @category video
+    // @vanilla
     //
     // Disable rendering the screen entirely.
     //

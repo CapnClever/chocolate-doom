@@ -40,6 +40,7 @@
 #include "w_main.h"
 #include "w_wad.h"
 #include "s_sound.h"
+#include "v_diskicon.h"
 #include "v_video.h"
 
 #include "f_finale.h"
@@ -144,6 +145,7 @@ char		wadfile[1024];          // primary wad file
 char		mapdir[1024];           // directory of development maps
 
 int             show_endoom = 0;
+int             show_diskicon = 1;
 int             graphical_startup = 1;
 
 // If true, startup has completed and the main game loop has started.
@@ -444,6 +446,7 @@ void D_BindVariables(void)
     M_BindIntVariable("vanilla_savegame_limit", &vanilla_savegame_limit);
     M_BindIntVariable("vanilla_demo_limit",     &vanilla_demo_limit);
     M_BindIntVariable("show_endoom",            &show_endoom);
+    M_BindIntVariable("show_diskicon",          &show_diskicon);
     M_BindIntVariable("graphical_startup",      &graphical_startup);
 
     M_BindStringVariable("back_flat",           &back_flat);
@@ -512,7 +515,10 @@ void D_DoomLoop (void)
         I_InitGraphics();
     }
 
-    I_EnableLoadingDisk();
+    if (show_diskicon)
+    {
+        V_EnableLoadingDisk("STDISK", SCREENWIDTH - LOADING_DISK_W, 3);
+    }
     I_SetGrabMouseCallback(D_GrabMouseCallback);
 
     V_RestoreBuffer();
@@ -831,49 +837,48 @@ void D_IdentifyVersion(void)
     // Load voices.wad 
     if(isregistered)
     {
-        char *name = D_FindWADByName("voices.wad");
+        char *name = NULL;
+        int p;
 
-        if(!name) // not found?
+        // If -iwad was used, check and see if voices.wad exists on the same
+        // filepath.
+        if((p = M_CheckParm("-iwad")) && p < myargc - 1)
         {
-            int p;
+            char   *iwad     = myargv[p + 1];
+            size_t  len      = strlen(iwad) + 1;
+            char   *iwadpath = Z_Malloc(len, PU_STATIC, NULL);
+            char   *voiceswad;
 
-            // haleyjd STRIFE-FIXME: Temporary?
-            // If -iwad was used, check and see if voices.wad exists on the
-            // same filepath.
-            if((p = M_CheckParm("-iwad")) && p < myargc - 1)
-            {
-                char   *iwad     = myargv[p + 1];
-                size_t  len      = strlen(iwad) + 1;
-                char   *iwadpath = Z_Malloc(len, PU_STATIC, NULL);
-                char   *voiceswad;
-                
-                // extract base path of IWAD parameter
-                M_GetFilePath(iwad, iwadpath, len);
-                
-                // concatenate with /voices.wad
-                voiceswad = M_SafeFilePath(iwadpath, "voices.wad");
-                Z_Free(iwadpath);
+            // extract base path of IWAD parameter
+            M_GetFilePath(iwad, iwadpath, len);
 
-                if(!M_FileExists(voiceswad))
-                {
-                    disable_voices = 1;
-                    Z_Free(voiceswad);
-                }
-                else
-                    name = voiceswad; // STRIFE-FIXME: memory leak!!
-            }
+            // concatenate with /voices.wad
+            voiceswad = M_SafeFilePath(iwadpath, "voices.wad");
+            Z_Free(iwadpath);
+
+            if(!M_FileExists(voiceswad))
+                Z_Free(voiceswad);
             else
-                disable_voices = 1;
+                name = voiceswad; // STRIFE-FIXME: memory leak!!
         }
 
-        if(disable_voices) // voices disabled?
+        // not found? try global search paths
+        if(!name)
+            name = D_FindWADByName("voices.wad");
+
+        // still not found? too bad.
+        if(!name)
         {
+            disable_voices = 1;
+
             if(devparm)
                  printf("Voices disabled\n");
-            return;
         }
-
-        D_AddFile(name);
+        else
+        {
+            // add it.
+            D_AddFile(name);
+        }
     }
 }
 
@@ -1632,7 +1637,7 @@ void D_DoomMain (void)
 
         if (D_AddFile (file))
         {
-            M_StringCopy(demolumpname, lumpinfo[numlumps - 1].name,
+            M_StringCopy(demolumpname, lumpinfo[numlumps - 1]->name,
                          sizeof(demolumpname));
         }
         else

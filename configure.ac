@@ -8,6 +8,7 @@ PACKAGE_MAINTAINER="Zvonimir Buzanic"
 PACKAGE_URL="http://www.doom.com.hr/"
 
 AC_CONFIG_AUX_DIR(autotools)
+AC_CANONICAL_HOST
 
 orig_CFLAGS="$CFLAGS"
 
@@ -16,12 +17,6 @@ AC_PROG_RANLIB
 AC_CHECK_PROG(HAVE_PYTHON, python, true, false)
 
 OPT_LEVEL=2
-
-# Engine room, we need more speed!
-
-AC_ARG_ENABLE(penis-extension, 
-[  --enable-penis-extension   Enable counterproductive compiler optimisations ],
-[ OPT_LEVEL=3 ])
 
 # If this is gcc, we have some options we'd like to turn on.  Turn on 
 # optimisation and debugging symbols.
@@ -79,7 +74,14 @@ AC_SDL_MAIN_WORKAROUND([
         [Build without libsamplerate @<:@default=check@:>@]),
     [],
     [
-        AC_CHECK_LIB(samplerate, src_new)
+        [with_libsamplerate=check]
+    ])
+    AS_IF([test "x$with_libsamplerate" != xno], [
+        AC_CHECK_LIB(samplerate, src_new, [], [
+            AS_IF([test "x$with_libsamplerate" != xcheck], [AC_MSG_FAILURE(
+                [--with-libsamplerate was given, but test for libsamplerate failed])
+            ])
+        ])
     ])
     # Check for libpng.
     AC_ARG_WITH([libpng],
@@ -87,8 +89,15 @@ AC_SDL_MAIN_WORKAROUND([
         [Build without libpng @<:@default=check@:>@]),
     [],
     [
+        [with_libpng=check]
+    ])
+    AS_IF([test "x$with_libpng" != xno], [
         AC_CHECK_LIB(z, zlibVersion)
-        AC_CHECK_LIB(png, png_get_io_ptr)
+        AC_CHECK_LIB(png, png_get_io_ptr, [], [
+            AS_IF([test "x$with_libpng" != xcheck], [AC_MSG_FAILURE(
+                [--with-libpng was given, but test for libpng failed])
+            ])
+        ])
     ])
     AC_CHECK_LIB(m, log)
 
@@ -102,7 +111,22 @@ AC_SDL_MAIN_WORKAROUND([
     AC_CHECK_LIB(amd64, amd64_iopl)
 ])
 
-AC_CHECK_TOOL(WINDRES, windres, )
+AC_ARG_WITH([bashcompletiondir],
+    AS_HELP_STRING([--with-bashcompletiondir=DIR], [Bash completion directory]),
+    [],
+    [AS_IF([$($PKG_CONFIG --exists bash-completion 2> /dev/null)],
+        [bashcompletiondir=$($PKG_CONFIG --variable=completionsdir bash-completion)],
+	[bashcompletiondir=${datadir}/bash-completion/completions])])
+
+case "$host" in
+  *-*-mingw* | *-*-cygwin* | *-*-msvc* )
+    AC_CHECK_TOOL(WINDRES, windres, )
+    ;;
+  *)
+    WINDRES=
+    ;;
+esac
+
 AC_CHECK_TOOL(STRIP, strip, )
 
 AM_CONDITIONAL(HAVE_WINDRES, test "$WINDRES" != "")
@@ -142,6 +166,9 @@ AC_SUBST(PACKAGE_COPYRIGHT)
 AC_SUBST(PACKAGE_LICENSE)
 AC_SUBST(PACKAGE_MAINTAINER)
 AC_SUBST(PACKAGE_URL)
+AC_SUBST(PACKAGE_ISSUES)
+
+AC_SUBST(bashcompletiondir)
 
 dnl Shut up the datarootdir warnings.
 AC_DEFUN([AC_DATAROOTDIR_CHECKED])
@@ -149,6 +176,7 @@ AC_DEFUN([AC_DATAROOTDIR_CHECKED])
 AC_OUTPUT([
 Makefile
 man/Makefile
+man/bash-completion/Makefile
 opl/Makefile
 opl/examples/Makefile
 pcsound/Makefile
@@ -159,11 +187,14 @@ pkg/osx/Info.plist
 rpm.spec
 data/Makefile
 src/Makefile
+src/doom.appdata.xml
 src/doom.desktop
 src/doom-screensaver.desktop
 src/doom/Makefile
+src/heretic.appdata.xml
 src/heretic.desktop
 src/heretic/Makefile
+src/hexen.appdata.xml
 src/hexen.desktop
 src/hexen/Makefile
 src/resource.rc
@@ -171,6 +202,7 @@ src/setup-res.rc
 src/setup/Makefile
 src/setup/setup.desktop
 src/setup/setup-manifest.xml
+src/strife.appdata.xml
 src/strife.desktop
 src/strife/Makefile
 textscreen/Makefile

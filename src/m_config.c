@@ -831,6 +831,14 @@ static default_t extra_defaults_list[] =
     CONFIG_VARIABLE_INT(snd_maxslicetime_ms),
 
     //!
+    // If non-zero, sound effects will have their pitch varied up or
+    // down by a random amount during play. If zero, sound effects
+    // play back at their default pitch. The default is zero.
+    //
+
+    CONFIG_VARIABLE_INT(snd_pitchshift),
+
+    //!
     // External command to invoke to perform MIDI playback. If set to
     // the empty string, SDL_mixer's internal MIDI playback is used.
     // This only has any effect when snd_musicdevice is set to General
@@ -860,6 +868,15 @@ static default_t extra_defaults_list[] =
     //
 
     CONFIG_VARIABLE_INT(show_endoom),
+
+    //!
+    // @game doom strife
+    //
+    // If non-zero, a disk activity indicator is displayed when data is read
+    // from disk. If zero, the disk activity indicator is not displayed.
+    //
+
+    CONFIG_VARIABLE_INT(show_diskicon),
 
     //!
     // If non-zero, save screenshots in PNG format.
@@ -1054,6 +1071,12 @@ static default_t extra_defaults_list[] =
     //
 
     CONFIG_VARIABLE_INT(joyb_menu_activate),
+
+    //!
+    // Joystick virtual button to toggle the automap.
+    //
+
+    CONFIG_VARIABLE_INT(joyb_toggle_automap),
 
     //!
     // Joystick virtual button that cycles to the previous weapon.

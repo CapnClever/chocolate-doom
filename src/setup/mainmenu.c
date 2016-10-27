@@ -39,7 +39,7 @@
 #include "multiplayer.h"
 #include "sound.h"
 
-#define WINDOW_HELP_URL "http://www.chocolate-doom.org/setup"
+#define WINDOW_HELP_URL "https://www.chocolate-doom.org/setup"
 
 static const int cheat_sequence[] =
 {
@@ -92,6 +92,8 @@ static void SensibleDefaults(void)
     show_endoom = 0;
     dclick_use = 0;  // [cndoom]
     novert = 1;
+    snd_dmxoption = "-opl3 -reverse";
+    png_screenshots = 1;
 }
 
 static int MainMenuKeyPress(txt_window_t *window, int key, void *user_data)

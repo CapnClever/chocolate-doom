@@ -25,7 +25,7 @@
 #include "mode.h"
 #include "mouse.h"
 
-#define WINDOW_HELP_URL "http://www.chocolate-doom.org/setup-mouse"
+#define WINDOW_HELP_URL "https://www.chocolate-doom.org/setup-mouse"
 
 static int usemouse = 1;
 
@@ -70,8 +70,9 @@ static void MouseSetCallback(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(variable))
     }
 }
 
-static void AddMouseControl(txt_table_t *table, char *label, int *var)
+static void AddMouseControl(TXT_UNCAST_ARG(table), char *label, int *var)
 {
+    TXT_CAST_ARG(txt_table_t, table);
     txt_mouse_input_t *mouse_input;
 
     TXT_AddWidget(table, TXT_NewLabel(label));
@@ -95,14 +96,14 @@ static void ConfigExtraButtons(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(unused))
                    buttons_table = TXT_NewTable(2),
                    NULL);
 
-    TXT_SetColumnWidths(buttons_table, 29, 5);
+    TXT_SetColumnWidths(buttons_table, 24, 5);
 
     AddMouseControl(buttons_table, "Move backward", &mousebbackward);
     AddMouseControl(buttons_table, "Use", &mousebuse);
     AddMouseControl(buttons_table, "Strafe left", &mousebstrafeleft);
     AddMouseControl(buttons_table, "Strafe right", &mousebstraferight);
 
-    if (gamemission == hexen)
+    if (gamemission == hexen || gamemission == strife)
     {
         AddMouseControl(buttons_table, "Jump", &mousebjump);
     }
@@ -119,22 +120,30 @@ void ConfigMouse(void)
 
     window = TXT_NewWindow("Mouse configuration");
 
+    TXT_SetTableColumns(window, 2);
+
+    TXT_SetWindowAction(window, TXT_HORIZ_CENTER, TestConfigAction());
     TXT_SetWindowHelpURL(window, WINDOW_HELP_URL);
 
     TXT_AddWidgets(window,
                    TXT_NewCheckBox("Enable mouse", &usemouse),
+                   TXT_TABLE_OVERFLOW_RIGHT,
                    TXT_NewInvertedCheckBox("Allow vertical mouse movement", 
                                            &novert),
+                   TXT_TABLE_OVERFLOW_RIGHT,
                    TXT_NewCheckBox("Grab mouse in windowed mode", 
                                    &grabmouse),
+                   TXT_TABLE_OVERFLOW_RIGHT,
                    TXT_NewCheckBox("Double click acts as \"use\"",
                                    &dclick_use),
+                   TXT_TABLE_OVERFLOW_RIGHT,
 
                    TXT_NewSeparator("Mouse motion"),
                    motion_table = TXT_NewTable(2),
     
                    TXT_NewSeparator("Buttons"),
                    buttons_table = TXT_NewTable(2),
+                   TXT_TABLE_OVERFLOW_RIGHT,
                    TXT_NewButton2("More controls...",
                                   ConfigExtraButtons,
                                   NULL),

@@ -44,6 +44,7 @@
 #include "m_config.h"
 #include "m_misc.h"
 #include "tables.h"
+#include "v_diskicon.h"
 #include "v_video.h"
 #include "w_wad.h"
 #include "z_zone.h"
@@ -92,9 +93,6 @@ static const char shiftxform[] =
     '{', '|', '}', '~', 127
 };
 
-
-#define LOADING_DISK_W (16 << hires)
-#define LOADING_DISK_H (16 << hires)
 
 // Non aspect ratio-corrected modes (direct multiples of 320x200)
 
@@ -240,11 +238,6 @@ static boolean noblit;
 
 static grabmouse_callback_t grabmouse_callback = NULL;
 
-// disk image data and background overwritten by the disk to be
-// restored by EndRead
-
-static byte *disk_image = NULL;
-static byte *saved_background;
 static boolean window_focused;
 
 // Empty mouse cursor
@@ -396,59 +389,6 @@ static void SetShowCursor(boolean show)
     {
         SDL_WM_GrabInput(!show);
     }
-}
-
-void I_EnableLoadingDisk(void)
-{
-    patch_t *disk;
-    byte *tmpbuf;
-    char *disk_name;
-    int y;
-    char buf[20];
-
-    SDL_VideoDriverName(buf, 15);
-
-    if (!strcmp(buf, "Quartz"))
-    {
-        // MacOS Quartz gives us pageflipped graphics that screw up the 
-        // display when we use the loading disk.  Disable it.
-        // This is a gross hack.
-
-        return;
-    }
-
-    if (M_CheckParm("-cdrom") > 0)
-        disk_name = DEH_String("STCDROM");
-    else
-        disk_name = DEH_String("STDISK");
-
-    disk = W_CacheLumpName(disk_name, PU_STATIC);
-
-    // Draw the patch into a temporary buffer
-
-    tmpbuf = Z_Malloc(SCREENWIDTH * ((disk->height + 1) << hires), PU_STATIC, NULL);
-    V_UseBuffer(tmpbuf);
-
-    // Draw the disk to the screen:
-
-    V_DrawPatch(0, 0, disk);
-
-    disk_image = Z_Malloc(LOADING_DISK_W * LOADING_DISK_H, PU_STATIC, NULL);
-    saved_background = Z_Malloc(LOADING_DISK_W * LOADING_DISK_H, PU_STATIC, NULL);
-
-    for (y=0; y<LOADING_DISK_H; ++y) 
-    {
-        memcpy(disk_image + LOADING_DISK_W * y,
-               tmpbuf + SCREENWIDTH * y,
-               LOADING_DISK_W);
-    }
-
-    // All done - free the screen buffer and restore the normal 
-    // video buffer.
-
-    W_ReleaseLumpName(disk_name);
-    V_RestoreBuffer();
-    Z_Free(tmpbuf);
 }
 
 //
@@ -989,81 +929,6 @@ static boolean BlitArea(int x1, int y1, int x2, int y2)
     return result;
 }
 
-static void UpdateRect(int x1, int y1, int x2, int y2)
-{
-    int x1_scaled, x2_scaled, y1_scaled, y2_scaled;
-
-    // Do stretching and blitting
-
-    if (BlitArea(x1, y1, x2, y2))
-    {
-        // Update the area
-
-        x1_scaled = (x1 * screen_mode->width) / SCREENWIDTH;
-        y1_scaled = (y1 * screen_mode->height) / SCREENHEIGHT;
-        x2_scaled = (x2 * screen_mode->width) / SCREENWIDTH;
-        y2_scaled = (y2 * screen_mode->height) / SCREENHEIGHT;
-
-        SDL_UpdateRect(screen,
-                       x1_scaled, y1_scaled,
-                       x2_scaled - x1_scaled,
-                       y2_scaled - y1_scaled);
-    }
-}
-
-void I_BeginRead(void)
-{
-    byte *screenloc = I_VideoBuffer
-                    + (SCREENHEIGHT - LOADING_DISK_H) * SCREENWIDTH
-                    + (SCREENWIDTH - LOADING_DISK_W);
-    int y;
-
-    if (!initialized || disk_image == NULL)
-        return;
-
-    // save background and copy the disk image in
-
-    for (y=0; y<LOADING_DISK_H; ++y)
-    {
-        memcpy(saved_background + y * LOADING_DISK_W,
-               screenloc,
-               LOADING_DISK_W);
-        memcpy(screenloc,
-               disk_image + y * LOADING_DISK_W,
-               LOADING_DISK_W);
-
-        screenloc += SCREENWIDTH;
-    }
-
-    UpdateRect(SCREENWIDTH - LOADING_DISK_W, SCREENHEIGHT - LOADING_DISK_H,
-               SCREENWIDTH, SCREENHEIGHT);
-}
-
-void I_EndRead(void)
-{
-    byte *screenloc = I_VideoBuffer
-                    + (SCREENHEIGHT - LOADING_DISK_H) * SCREENWIDTH
-                    + (SCREENWIDTH - LOADING_DISK_W);
-    int y;
-
-    if (!initialized || disk_image == NULL)
-        return;
-
-    // save background and copy the disk image in
-
-    for (y=0; y<LOADING_DISK_H; ++y)
-    {
-        memcpy(screenloc,
-               saved_background + y * LOADING_DISK_W,
-               LOADING_DISK_W);
-
-        screenloc += SCREENWIDTH;
-    }
-
-    UpdateRect(SCREENWIDTH - LOADING_DISK_W, SCREENHEIGHT - LOADING_DISK_H,
-               SCREENWIDTH, SCREENHEIGHT);
-}
-
 //
 // I_FinishUpdate
 //
@@ -1110,6 +975,9 @@ void I_FinishUpdate (void)
 	    I_VideoBuffer[ (SCREENHEIGHT-1)*SCREENWIDTH + i] = 0x0;
     }
 
+    // Draw disk icon before blit, if necessary.
+    V_DrawDiskIcon();
+
     // draw to screen
 
     BlitArea(0, 0, SCREENWIDTH, SCREENHEIGHT);
@@ -1144,6 +1012,9 @@ void I_FinishUpdate (void)
     }
 
     SDL_Flip(screen);
+
+    // Restore background and undo the disk indicator, if it was drawn.
+    V_RestoreDiskBackground();
 }
 
 
@@ -1152,7 +1023,7 @@ void I_FinishUpdate (void)
 //
 void I_ReadScreen (byte* scr)
 {
-    memcpy(scr, I_VideoBuffer, SCREENWIDTH*SCREENHEIGHT);
+    memcpy(scr, I_VideoBuffer, SCREENWIDTH*SCREENHEIGHT*sizeof(*scr));
 }
 
 
@@ -1579,12 +1450,13 @@ void I_GraphicsCheckCommandLine(void)
     int i;
 
     //!
+    // @category video
     // @vanilla
     //
     // Disable blitting the screen.
     //
 
-    noblit = M_CheckParm ("-noblit"); 
+    noblit = M_CheckParm ("-noblit");
 
     //!
     // @category video 

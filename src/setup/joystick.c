@@ -29,7 +29,7 @@
 #include "txt_joyaxis.h"
 #include "txt_joybinput.h"
 
-#define WINDOW_HELP_URL "http://www.chocolate-doom.org/setup-gamepad"
+#define WINDOW_HELP_URL "https://www.chocolate-doom.org/setup-gamepad"
 
 typedef struct
 {
@@ -125,22 +125,33 @@ static SDL_Joystick **all_joysticks = NULL;
 // Always loaded before others, to get a known starting configuration.
 static const joystick_config_t empty_defaults[] =
 {
-    {"joystick_x_axis",        -1},
-    {"joystick_x_invert",      0},
-    {"joystick_y_axis",        -1},
-    {"joystick_y_invert",      0},
-    {"joystick_strafe_axis",   -1},
-    {"joystick_strafe_invert", 0},
-    {"joyb_fire",              -1},
-    {"joyb_use",               -1},
-    {"joyb_strafe",            -1},
-    {"joyb_speed",             -1},
-    {"joyb_strafeleft",        -1},
-    {"joyb_straferight",       -1},
-    {"joyb_prevweapon",        -1},
-    {"joyb_nextweapon",        -1},
-    {"joyb_jump",              -1},
-    {"joyb_menu_activate",     -1},
+    {"joystick_x_axis",            -1},
+    {"joystick_x_invert",          0},
+    {"joystick_y_axis",            -1},
+    {"joystick_y_invert",          0},
+    {"joystick_strafe_axis",       -1},
+    {"joystick_strafe_invert",     0},
+    {"joyb_fire",                  -1},
+    {"joyb_use",                   -1},
+    {"joyb_strafe",                -1},
+    {"joyb_speed",                 -1},
+    {"joyb_strafeleft",            -1},
+    {"joyb_straferight",           -1},
+    {"joyb_prevweapon",            -1},
+    {"joyb_nextweapon",            -1},
+    {"joyb_jump",                  -1},
+    {"joyb_menu_activate",         -1},
+    {"joyb_toggle_automap",        -1},
+    {"joystick_physical_button0",  0},
+    {"joystick_physical_button1",  1},
+    {"joystick_physical_button2",  2},
+    {"joystick_physical_button3",  3},
+    {"joystick_physical_button4",  4},
+    {"joystick_physical_button5",  5},
+    {"joystick_physical_button6",  6},
+    {"joystick_physical_button7",  7},
+    {"joystick_physical_button8",  8},
+    {"joystick_physical_button9",  9},
     {NULL, 0},
 };
 
@@ -313,6 +324,38 @@ static const joystick_config_t pc_gameport_controller[] =
     {NULL, 0},
 };
 
+// http://www.8bitdo.com/nes30pro/
+static const joystick_config_t nes30_pro_controller[] =
+{
+    {"joystick_x_axis",        CREATE_HAT_AXIS(0, HAT_AXIS_HORIZONTAL)},
+    {"joystick_y_axis",        CREATE_HAT_AXIS(0, HAT_AXIS_VERTICAL)},
+    {"joyb_fire",              4},  // Y
+    {"joyb_speed",             1},  // B
+    {"joyb_jump",              2},  // X
+    {"joyb_use",               0},  // A
+    {"joyb_strafeleft",        8},  // L1
+    {"joyb_straferight",       9}, // R1
+    {"joyb_prevweapon",        6},  // L2
+    {"joyb_nextweapon",        7},  // R2
+    {"joyb_menu_activate",     11}, // Start
+    {NULL, 0},
+};
+
+// http://www.8bitdo.com/sfc30/ or http://www.8bitdo.com/snes30/
+static const joystick_config_t sfc30_controller[] =
+{
+    {"joystick_x_axis",        0},
+    {"joystick_y_axis",        1},
+    {"joyb_fire",              4}, // Y
+    {"joyb_speed",             1}, // B
+    {"joyb_jump",              3}, // X
+    {"joyb_use",               0}, // A
+    {"joyb_strafeleft",        6}, // L
+    {"joyb_straferight",       7}, // R
+    {"joyb_menu_activate",    11}, // Start
+    {"joyb_toggle_automap",   10}, // Select
+    {NULL, 0},
+};
 
 static const known_joystick_t known_joysticks[] =
 {
@@ -404,6 +447,52 @@ static const known_joystick_t known_joysticks[] =
         "Gameport to USB Controller",
         2, 8, 1,
         pc_gameport_controller,
+    },
+
+    // 8Bitdo NES30 Pro, http://www.8bitdo.com/nes30pro/
+    // Probably some of their other controllers can use the same config.
+    {
+        "8Bitdo NES30 Pro",
+        4, 16, 1,
+        nes30_pro_controller,
+    },
+
+    // 8Bitdo SFC30 SNES replica controller
+    // in default mode and in controller mode (Start+R)
+    // the latter suffixes "Joystick" to the name
+    // http://www.8bitdo.com/sfc30/
+    {
+        "8Bitdo SFC30 GamePad*",
+        4, 16, 1,
+        sfc30_controller,
+    },
+
+    // As above, but as detected on RHEL Linux (odd extra axes)
+    {
+        "8Bitdo SFC30 GamePad*",
+        6, 16, 1,
+        sfc30_controller,
+    },
+
+    // SNES30 colour variation of the above
+    // http://www.8bitdo.com/snes30/
+    {
+        "8Bitdo SNES30 GamePad*",
+        4, 16, 1,
+        sfc30_controller,
+    },
+
+    // 8Bitdo SFC30 SNES replica controller in USB controller mode
+    // tested with firmware V2.68 (Beta); latest stable V2.65 doesn't work on
+    // OS X in USB controller mode
+    // Names seen so far:
+    //     'SFC30 Joystick' (OS X)
+    //     'SFC30              SFC30 Joystick' (Fedora 24; RHEL7)
+    // XXX: there is probably a SNES30 variant of this too
+    {
+        "SFC30 *",
+        4, 12, 1,
+        sfc30_controller,
     },
 };
 
@@ -716,70 +805,76 @@ static void CalibrateJoystick(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(unused))
 // GUI
 //
 
-static void AddJoystickControl(txt_table_t *table, char *label, int *var)
+static void AddJoystickControl(TXT_UNCAST_ARG(table), char *label, int *var)
 {
+    TXT_CAST_ARG(txt_table_t, table);
     txt_joystick_input_t *joy_input;
 
     joy_input = TXT_NewJoystickInput(var);
 
-    TXT_AddWidget(table, TXT_NewLabel(label));
-    TXT_AddWidget(table, joy_input);
+    TXT_AddWidgets(table,
+                   TXT_NewLabel(label),
+                   joy_input,
+                   TXT_TABLE_EMPTY,
+                   NULL);
 }
 
 void ConfigJoystick(void)
 {
     txt_window_t *window;
-    txt_table_t *button_table, *axis_table;
-    txt_table_t *joystick_table;
 
     window = TXT_NewWindow("Gamepad/Joystick configuration");
-
+    TXT_SetTableColumns(window, 6);
+    TXT_SetColumnWidths(window, 18, 10, 1, 15, 10, 0);
     TXT_SetWindowHelpURL(window, WINDOW_HELP_URL);
 
     TXT_AddWidgets(window,
-                   joystick_table = TXT_NewTable(2),
-                   TXT_NewSeparator("Axes"),
-                   axis_table = TXT_NewTable(2),
-                   TXT_NewSeparator("Buttons"),
-                   button_table = TXT_NewTable(4),
-                   NULL);
-
-    TXT_SetColumnWidths(joystick_table, 13, 40);
-
-    TXT_AddWidgets(joystick_table,
                    TXT_NewLabel("Controller"),
                    joystick_button = TXT_NewButton("zzzz"),
-                   NULL);
+                   TXT_TABLE_EOL,
 
-    TXT_SetColumnWidths(axis_table, 20, 15);
-
-    TXT_AddWidgets(axis_table,
+                   TXT_NewSeparator("Axes"),
                    TXT_NewLabel("Forward/backward"),
                    y_axis_widget = TXT_NewJoystickAxis(&joystick_y_axis,
                                                        &joystick_y_invert,
                                                        JOYSTICK_AXIS_VERTICAL),
+                   TXT_TABLE_OVERFLOW_RIGHT,
+                   TXT_TABLE_OVERFLOW_RIGHT,
+                   TXT_TABLE_EMPTY,
+                   TXT_TABLE_EMPTY,
+
                    TXT_NewLabel("Turn left/right"),
-                   x_axis_widget = TXT_NewJoystickAxis(&joystick_x_axis,
-                                                       &joystick_x_invert,
-                                                       JOYSTICK_AXIS_HORIZONTAL),
+                   x_axis_widget =
+                        TXT_NewJoystickAxis(&joystick_x_axis,
+                                            &joystick_x_invert,
+                                            JOYSTICK_AXIS_HORIZONTAL),
+                   TXT_TABLE_OVERFLOW_RIGHT,
+                   TXT_TABLE_OVERFLOW_RIGHT,
+                   TXT_TABLE_EMPTY,
+                   TXT_TABLE_EMPTY,
+
                    TXT_NewLabel("Strafe left/right"),
                    TXT_NewJoystickAxis(&joystick_strafe_axis,
                                        &joystick_strafe_invert,
                                         JOYSTICK_AXIS_HORIZONTAL),
+                   TXT_TABLE_OVERFLOW_RIGHT,
+                   TXT_TABLE_OVERFLOW_RIGHT,
+                   TXT_TABLE_EMPTY,
+                   TXT_TABLE_EMPTY,
+
+                   TXT_NewSeparator("Buttons"),
                    NULL);
 
-    TXT_SetColumnWidths(button_table, 16, 12, 14, 11);
+    AddJoystickControl(window, "Fire/Attack", &joybfire);
+    AddJoystickControl(window, "Strafe Left", &joybstrafeleft);
 
-    AddJoystickControl(button_table, "Fire/Attack", &joybfire);
-    AddJoystickControl(button_table, "Strafe Left", &joybstrafeleft);
+    AddJoystickControl(window, "Use", &joybuse);
+    AddJoystickControl(window, "Strafe Right", &joybstraferight);
 
-    AddJoystickControl(button_table, "Use", &joybuse);
-    AddJoystickControl(button_table, "Strafe Right", &joybstraferight);
+    AddJoystickControl(window, "Previous weapon", &joybprevweapon);
+    AddJoystickControl(window, "Strafe", &joybstrafe);
 
-    AddJoystickControl(button_table, "Previous weapon", &joybprevweapon);
-    AddJoystickControl(button_table, "Strafe", &joybstrafe);
-
-    AddJoystickControl(button_table, "Next weapon", &joybnextweapon);
+    AddJoystickControl(window, "Next weapon", &joybnextweapon);
 
     // High values of joybspeed are used to activate the "always run mode"
     // trick in Vanilla Doom.  If this has been enabled, not only is the
@@ -787,15 +882,17 @@ void ConfigJoystick(void)
 
     if (joybspeed < 20)
     {
-        AddJoystickControl(button_table, "Speed", &joybspeed);
+        AddJoystickControl(window, "Speed", &joybspeed);
     }
 
     if (gamemission == hexen || gamemission == strife)
     {
-        AddJoystickControl(button_table, "Jump", &joybjump);
+        AddJoystickControl(window, "Jump", &joybjump);
     }
 
-    AddJoystickControl(button_table, "Activate menu", &joybmenu);
+    AddJoystickControl(window, "Activate menu", &joybmenu);
+
+    AddJoystickControl(window, "Toggle Automap", &joybautomap);
 
     TXT_SignalConnect(joystick_button, "pressed", CalibrateJoystick, NULL);
     TXT_SetWindowAction(window, TXT_HORIZ_CENTER, TestConfigAction());

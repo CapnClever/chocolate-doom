@@ -103,7 +103,6 @@ boolean debugmode;              // checkparm of -debug
 boolean ravpic;                 // checkparm of -ravpic
 boolean cdrom = false;          // true if cd-rom mode active
 boolean cmdfrag;                // true if a CMD_FRAG packet should be sent out
-boolean singletics;             // debug flag to cancel adaptiveness
 boolean artiskip;               // whether shift-enter skips an artifact
 int maxzone = 0x800000;         // Maximum allocated for zone heap (8meg default)
 skill_t startskill;
@@ -150,6 +149,10 @@ void D_BindVariables(void)
     key_multi_msgplayer[5] = CT_KEY_PLAYER6;
     key_multi_msgplayer[6] = CT_KEY_PLAYER7;
     key_multi_msgplayer[7] = CT_KEY_PLAYER8;
+
+#ifdef FEATURE_MULTIPLAYER
+    NET_BindVariables();
+#endif
 
     M_BindIntVariable("graphical_startup",      &graphical_startup);
     M_BindIntVariable("mouse_sensitivity",      &mouseSensitivity);
@@ -289,7 +292,7 @@ void D_IdentifyVersion(void)
             "You are trying to use the Hexen v1.0 IWAD. This isn't\n"
             "supported by " PACKAGE_NAME ". Please upgrade to the v1.1\n"
             "IWAD file. See here for more information:\n"
-            "  http://www.doomworld.com/classicdoom/info/patches.php");
+            "  https://www.doomworld.com/classicdoom/info/patches.php");
     }
 }
 
@@ -664,7 +667,7 @@ static void HandleArgs(void)
 
         if (W_AddFile(file) != NULL)
         {
-            M_StringCopy(demolumpname, lumpinfo[numlumps - 1].name,
+            M_StringCopy(demolumpname, lumpinfo[numlumps - 1]->name,
                          sizeof(demolumpname));
         }
         else
@@ -676,6 +679,15 @@ static void HandleArgs(void)
 
         ST_Message("Playing demo %s.\n", myargv[p+1]);
     }
+
+    //!
+    // @category demo
+    //
+    // Record or playback a demo without automatically quitting
+    // after either level exit or player respawn.
+    //
+
+    demoextend = M_ParmExists("-demoextend");
 
     if (M_ParmExists("-testcontrols"))
     {

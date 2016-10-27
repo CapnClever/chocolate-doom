@@ -1,6 +1,4 @@
 
-gamesdir = $(prefix)/games
-
 AM_CFLAGS = @SDL_CFLAGS@                                           \
             @SDLMIXER_CFLAGS@                                      \
             -I$(top_srcdir)/textscreen -I$(top_srcdir)/src
@@ -40,7 +38,7 @@ CLEANFILES = $(app_DATA)
 if HAVE_PYTHON
 
 setup_icon.c : $(top_builddir)/data/setup8.ico
-	$(top_builddir)/data/convert-icon $^ $@
+	$(top_builddir)/data/convert-icon $(top_builddir)/data/setup8.ico $@
 
 endif
 

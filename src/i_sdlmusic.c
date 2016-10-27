@@ -752,7 +752,7 @@ static void DumpSubstituteConfig(char *filename)
 
     for (lumpnum = 0; lumpnum < numlumps; ++lumpnum)
     {
-        strncpy(name, lumpinfo[lumpnum].name, 8);
+        strncpy(name, lumpinfo[lumpnum]->name, 8);
         name[8] = '\0';
 
         if (!IsMusicLump(lumpnum))
@@ -922,7 +922,7 @@ static boolean I_SDL_InitMusic(void)
 #endif
 
     //!
-    // @arg <output filename>
+    // @arg <filename>
     //
     // Read all MIDI files from loaded WAD files, dump an example substitution
     // music config file to the specified filename and quit.

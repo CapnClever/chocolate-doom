@@ -31,6 +31,7 @@
 
 #ifdef _WIN32
 
+#include <string.h>
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
@@ -51,7 +52,13 @@
 //
 
 #ifdef __GNUC__
+
+#if defined(_WIN32) && !defined(__clang__)
+#define PACKEDATTR __attribute__((packed,gcc_struct))
+#else
 #define PACKEDATTR __attribute__((packed))
+#endif
+
 #else
 #define PACKEDATTR
 #endif
@@ -66,7 +73,7 @@
 
 #include <inttypes.h>
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(__bool_true_false_are_defined)
 
 // Use builtin bool type with C++.
 

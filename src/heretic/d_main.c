@@ -65,7 +65,6 @@ boolean respawnparm;            // checkparm of -respawn
 boolean debugmode;              // checkparm of -debug
 boolean ravpic;                 // checkparm of -ravpic
 boolean cdrom;                  // true if cd-rom mode active
-boolean singletics;             // debug flag to cancel adaptiveness
 boolean noartiskip;             // whether shift-enter skips an artifact
 
 skill_t startskill;
@@ -759,6 +758,10 @@ void D_BindVariables(void)
     M_BindMenuControls();
     M_BindMapControls();
 
+#ifdef FEATURE_MULTIPLAYER
+    NET_BindVariables();
+#endif
+
     M_BindIntVariable("mouse_sensitivity",      &mouseSensitivity);
     M_BindIntVariable("sfx_volume",             &snd_MaxVolume);
     M_BindIntVariable("music_volume",           &snd_MusicVolume);
@@ -1022,7 +1025,7 @@ void D_DoomMain(void)
 
         if (D_AddFile(file))
         {
-            M_StringCopy(demolumpname, lumpinfo[numlumps - 1].name,
+            M_StringCopy(demolumpname, lumpinfo[numlumps - 1]->name,
                          sizeof(demolumpname));
         }
         else
@@ -1034,6 +1037,15 @@ void D_DoomMain(void)
 
         printf("Playing demo %s.\n", file);
     }
+
+    //!
+    // @category demo
+    //
+    // Record or playback a demo without automatically quitting
+    // after either level exit or player respawn.
+    //
+
+    demoextend = M_ParmExists("-demoextend");
 
     if (W_CheckNumForName(DEH_String("E2M1")) == -1)
     {

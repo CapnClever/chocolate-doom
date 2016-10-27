@@ -85,6 +85,7 @@ typedef struct
     // Volume level
 
     int volume;
+    int volume_base;
 
     // Pan
 
@@ -307,10 +308,11 @@ static const unsigned int volume_mapping_table[] = {
     124, 124, 125, 125, 126, 126, 127, 127
 };
 
-static opl_driver_ver_t opl_drv_ver = opl_v_new;
+static opl_driver_ver_t opl_drv_ver = opl_doom_1_9;
 static boolean music_initialized = false;
 
 //static boolean musicpaused = false;
+static int start_music_volume;
 static int current_music_volume;
 
 // GENMIDI lump instrument data:
@@ -351,6 +353,12 @@ static unsigned int last_perc_count;
 
 char *snd_dmxoption = "";
 int opl_io_port = 0x388;
+
+// If true, OPL sound channels are reversed to their correct arrangement
+// (as intended by the MIDI standard) rather than the backwards one
+// used by DMX due to a bug.
+
+static boolean opl_stereo_correct = false;
 
 // Load instrument table from GENMIDI lump:
 
@@ -470,7 +478,7 @@ static void ReleaseVoice(opl_voice_t *voice)
     *rover = voice;
     voice->next = NULL;
 
-    if (next != NULL && double_voice && opl_drv_ver == opl_v_old)
+    if (next != NULL && double_voice && opl_drv_ver != opl_doom_1_9)
     {
         VoiceKeyOff(next);
         ReleaseVoice(next);
@@ -566,8 +574,7 @@ static void SetVoiceVolume(opl_voice_t *voice, unsigned int volume)
 
     // Multiply note volume and channel volume to get the actual volume.
 
-    midi_volume = 2 * (volume_mapping_table[(voice->channel->volume
-                  * current_music_volume) / 127] + 1);
+    midi_volume = 2 * (volume_mapping_table[voice->channel->volume] + 1);
 
     full_volume = (volume_mapping_table[voice->note_volume] * midi_volume)
                 >> 9;
@@ -639,11 +646,19 @@ static void InitVoices(void)
     }
 }
 
+static void SetChannelVolume(opl_channel_data_t *channel, unsigned int volume,
+                             boolean clip_start);
+
 // Set music volume (0 - 127)
 
 static void I_OPL_SetMusicVolume(int volume)
 {
-    unsigned int i;
+    unsigned int i, j;
+
+    if (current_music_volume == volume)
+    {
+        return;
+    }
 
     // Internal state variable.
 
@@ -651,11 +666,19 @@ static void I_OPL_SetMusicVolume(int volume)
 
     // Update the volume of all voices.
 
-    for (i = 0; i < num_opl_voices; ++i)
+    for (i = 0; i < num_tracks; ++i)
     {
-        if (voices[i].channel != NULL)
+        for (j = 0; j < MIDI_CHANNELS_PER_TRACK; ++j)
         {
-            SetVoiceVolume(&voices[i], voices[i].note_volume);
+            if (j == 15)
+            {
+                SetChannelVolume(&tracks[i].channels[j], volume, false);
+            }
+            else
+            {
+                SetChannelVolume(&tracks[i].channels[j],
+                                 tracks[i].channels[j].volume_base, false);
+            }
         }
     }
 }
@@ -770,10 +793,29 @@ static void ReplaceExistingVoice(void)
     ReleaseVoice(result);
 }
 
-// Alternate version of ReplaceExistingVoice() used when emulating old
-// versions of the DMX library used in Heretic and Hexen.
+// Alternate versions of ReplaceExistingVoice() used when emulating old
+// versions of the DMX library used in Doom 1.666, Heretic and Hexen.
 
-static void ReplaceExistingVoiceOld(opl_channel_data_t *channel)
+static void ReplaceExistingVoiceDoom1(void)
+{
+    opl_voice_t *rover;
+    opl_voice_t *result;
+
+    result = voice_alloced_list;
+
+    for (rover = voice_alloced_list; rover != NULL; rover = rover->next)
+    {
+        if (rover->channel > result->channel)
+        {
+            result = rover;
+        }
+    }
+
+    VoiceKeyOff(result);
+    ReleaseVoice(result);
+}
+
+static void ReplaceExistingVoiceDoom2(opl_channel_data_t *channel)
 {
     opl_voice_t *rover;
     opl_voice_t *result;
@@ -918,6 +960,11 @@ static void VoiceKeyOn(opl_channel_data_t *channel,
 {
     opl_voice_t *voice;
 
+    if (!opl_opl3mode && opl_drv_ver == opl_doom1_1_666)
+    {
+        instrument_voice = 0;
+    }
+
     // Find a voice to use for this new note.
 
     voice = GetFreeVoice();
@@ -962,7 +1009,7 @@ static void KeyOnEvent(opl_track_data_t *track, midi_event_t *event)
 {
     genmidi_instr_t *instrument;
     opl_channel_data_t *channel;
-    unsigned int note, key, volume;
+    unsigned int note, key, volume, voicenum;
     boolean double_voice;
 
 /*
@@ -1009,43 +1056,66 @@ static void KeyOnEvent(opl_track_data_t *track, midi_event_t *event)
 
     double_voice = (SHORT(instrument->flags) & GENMIDI_FLAG_2VOICE) != 0;
 
-    if (opl_drv_ver == opl_v_old)
+    switch (opl_drv_ver)
     {
-        if (voice_alloced_num == num_opl_voices)
-        {
-            ReplaceExistingVoiceOld(channel);
-        }
-        if (voice_alloced_num == num_opl_voices - 1 && double_voice)
-        {
-            ReplaceExistingVoiceOld(channel);
-        }
+        case opl_doom1_1_666:
+            voicenum = double_voice + 1;
+            if (!opl_opl3mode)
+            {
+                voicenum = 1;
+            }
+            while (voice_alloced_num > num_opl_voices - voicenum)
+            {
+                ReplaceExistingVoiceDoom1();
+            }
 
-        // Find and program a voice for this instrument.  If this
-        // is a double voice instrument, we must do this twice.
+            // Find and program a voice for this instrument.  If this
+            // is a double voice instrument, we must do this twice.
 
-        if (double_voice)
-        {
-            VoiceKeyOn(channel, instrument, 1, note, key, volume);
-        }
+            if (double_voice)
+            {
+                VoiceKeyOn(channel, instrument, 1, note, key, volume);
+            }
 
-        VoiceKeyOn(channel, instrument, 0, note, key, volume);
-    }
-    else
-    {
-        if (voice_free_list == NULL)
-        {
-            ReplaceExistingVoice();
-        }
+            VoiceKeyOn(channel, instrument, 0, note, key, volume);
+            break;
+        case opl_doom2_1_666:
+            if (voice_alloced_num == num_opl_voices)
+            {
+                ReplaceExistingVoiceDoom2(channel);
+            }
+            if (voice_alloced_num == num_opl_voices - 1 && double_voice)
+            {
+                ReplaceExistingVoiceDoom2(channel);
+            }
 
-        // Find and program a voice for this instrument.  If this
-        // is a double voice instrument, we must do this twice.
+            // Find and program a voice for this instrument.  If this
+            // is a double voice instrument, we must do this twice.
 
-        VoiceKeyOn(channel, instrument, 0, note, key, volume);
+            if (double_voice)
+            {
+                VoiceKeyOn(channel, instrument, 1, note, key, volume);
+            }
 
-        if (double_voice)
-        {
-            VoiceKeyOn(channel, instrument, 1, note, key, volume);
-        }
+            VoiceKeyOn(channel, instrument, 0, note, key, volume);
+            break;
+        default:
+        case opl_doom_1_9:
+            if (voice_free_list == NULL)
+            {
+                ReplaceExistingVoice();
+            }
+
+            // Find and program a voice for this instrument.  If this
+            // is a double voice instrument, we must do this twice.
+
+            VoiceKeyOn(channel, instrument, 0, note, key, volume);
+
+            if (double_voice)
+            {
+                VoiceKeyOn(channel, instrument, 1, note, key, volume);
+            }
+            break;
     }
 }
 
@@ -1064,9 +1134,22 @@ static void ProgramChangeEvent(opl_track_data_t *track, midi_event_t *event)
     // channel, and change the instrument.
 }
 
-static void SetChannelVolume(opl_channel_data_t *channel, unsigned int volume)
+static void SetChannelVolume(opl_channel_data_t *channel, unsigned int volume,
+                             boolean clip_start)
 {
     unsigned int i;
+
+    channel->volume_base = volume;
+
+    if (volume > current_music_volume)
+    {
+        volume = current_music_volume;
+    }
+
+    if (clip_start && volume > start_music_volume)
+    {
+        volume = start_music_volume;
+    }
 
     channel->volume = volume;
 
@@ -1085,6 +1168,16 @@ static void SetChannelPan(opl_channel_data_t *channel, unsigned int pan)
 {
     unsigned int reg_pan;
     unsigned int i;
+
+    // The DMX library has the stereo channels backwards, maybe because
+    // Paul Radek had a Soundblaster card with the channels reversed, or
+    // perhaps it was just a bug in the OPL3 support that was never
+    // finished. By default we preserve this bug, but we also provide a
+    // secret DMXOPTION to fix it.
+    if (opl_stereo_correct)
+    {
+        pan = 144 - pan;
+    }
 
     if (opl_opl3mode)
     {
@@ -1169,7 +1262,7 @@ static void ControllerEvent(opl_track_data_t *track, midi_event_t *event)
     switch (controller)
     {
         case MIDI_CONTROLLER_MAIN_VOLUME:
-            SetChannelVolume(channel, param);
+            SetChannelVolume(channel, param, true);
             break;
 
         case MIDI_CONTROLLER_PAN:
@@ -1307,19 +1400,26 @@ static void ProcessEvent(opl_track_data_t *track, midi_event_t *event)
 }
 
 static void ScheduleTrack(opl_track_data_t *track);
+static void InitChannel(opl_track_data_t *track, opl_channel_data_t *channel);
 
 // Restart a song from the beginning.
 
 static void RestartSong(void *unused)
 {
-    unsigned int i;
+    unsigned int i, j;
 
     running_tracks = num_tracks;
+
+    start_music_volume = current_music_volume;
 
     for (i = 0; i < num_tracks; ++i)
     {
         MIDI_RestartIterator(tracks[i].iter);
         ScheduleTrack(&tracks[i]);
+        for (j = 0; j < MIDI_CHANNELS_PER_TRACK; ++j)
+        {
+            InitChannel(&tracks[i], &tracks[i].channels[j]);
+        }
     }
 }
 
@@ -1390,7 +1490,12 @@ static void InitChannel(opl_track_data_t *track, opl_channel_data_t *channel)
     // TODO: Work out sensible defaults?
 
     channel->instrument = &main_instrs[0];
-    channel->volume = 127;
+    channel->volume = current_music_volume;
+    channel->volume_base = 100;
+    if (channel->volume > channel->volume_base)
+    {
+        channel->volume = channel->volume_base;
+    }
     channel->pan = 0x30;
     channel->bend = 0;
 }
@@ -1443,6 +1548,8 @@ static void I_OPL_PlaySong(void *handle, boolean looping)
     // TODO: this is wrong
 
     us_per_beat = 500 * 1000;
+
+    start_music_volume = current_music_volume;
 
     for (i = 0; i < num_tracks; ++i)
     {
@@ -1680,6 +1787,10 @@ static boolean I_OPL_InitMusic(void)
         opl_opl3mode = 0;
         num_opl_voices = OPL_NUM_VOICES;
     }
+
+    // Secret, undocumented DMXOPTION that reverses the stereo channels
+    // into their correct orientation.
+    opl_stereo_correct = strstr(dmxoption, "-reverse") != NULL;
 
     // Initialize all registers.
 

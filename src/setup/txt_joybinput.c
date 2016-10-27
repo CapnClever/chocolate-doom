@@ -56,6 +56,7 @@ static int *all_joystick_buttons[] =
     &joybnextweapon,
     &joybjump,
     &joybmenu,
+    &joybautomap,
 };
 
 static int PhysicalForVirtualButton(int vbutton)
@@ -189,7 +190,7 @@ static void PromptWindowClosed(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(joystick))
 
 static void OpenErrorWindow(void)
 {
-    TXT_MessageBox(NULL, "Please configure a joystick first!");
+    TXT_MessageBox(NULL, "Please configure a controller first!");
 }
 
 static void OpenPromptWindow(txt_joystick_input_t *joystick_input)
@@ -218,7 +219,7 @@ static void OpenPromptWindow(txt_joystick_input_t *joystick_input)
 
     // Open the prompt window
 
-    window = TXT_MessageBox(NULL, "Press the new joystick button...");
+    window = TXT_MessageBox(NULL, "Press the new button on the controller...");
 
     TXT_SDL_SetEventCallback(EventCallback, joystick_input);
     TXT_SignalConnect(window, "closed", PromptWindowClosed, joystick);
@@ -296,7 +297,8 @@ static int TXT_JoystickInputKeyPress(TXT_UNCAST_ARG(joystick_input), int key)
     return 0;
 }
 
-static void TXT_JoystickInputMousePress(TXT_UNCAST_ARG(widget), int x, int y, int b)
+static void TXT_JoystickInputMousePress(TXT_UNCAST_ARG(widget),
+                                        int x, int y, int b)
 {
     TXT_CAST_ARG(txt_joystick_input_t, widget);
 
