@@ -1,0 +1,10 @@
+*.cfg
+*.ncb
+*.suo
+*.user
+*.VC.db
+*.VC.opendb
+hexndata
+savegames
+strfsav*
+*.pcx

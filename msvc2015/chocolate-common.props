@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <PACKAGE>chocolate-doom</PACKAGE>
+    <PACKAGE_BUGREPORT>chocolate-doom-dev-list@chocolate-doom.org</PACKAGE_BUGREPORT>
+    <PACKAGE_NAME>Chocolate Doom</PACKAGE_NAME>
+    <PACKAGE_STRING>Chocolate Doom 2.2.1</PACKAGE_STRING>
+    <PACKAGE_TARNAME>chocolate-doom</PACKAGE_TARNAME>
+    <PACKAGE_VERSION>2.2.1</PACKAGE_VERSION>
+    <PROGRAM_PREFIX>chocolate-</PROGRAM_PREFIX>
+    <VERSION>2.2.1</VERSION>
+  </PropertyGroup>
+  <PropertyGroup>
+    <_PropertySheetDisplayName>chocolate-common</_PropertySheetDisplayName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;PACKAGE="$(PACKAGE)";PACKAGE_BUGREPORT="$(PACKAGE_BUGREPORT)";PACKAGE_NAME="$(PACKAGE_NAME)";PACKAGE_STRING="$(PACKAGE_STRING)";PACKAGE_TARNAME="$(PACKAGE_TARNAME)";PACKAGE_VERSION="$(PACKAGE_VERSION)";PROGRAM_PREFIX="$(PROGRAM_PREFIX)";VERSION="$(VERSION)"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.;..\src;</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="PACKAGE">
+      <Value>$(PACKAGE)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PACKAGE_BUGREPORT">
+      <Value>$(PACKAGE_BUGREPORT)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PACKAGE_NAME">
+      <Value>$(PACKAGE_NAME)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PACKAGE_STRING">
+      <Value>$(PACKAGE_STRING)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PACKAGE_TARNAME">
+      <Value>$(PACKAGE_TARNAME)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PACKAGE_VERSION">
+      <Value>$(PACKAGE_VERSION)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PROGRAM_PREFIX">
+      <Value>$(PROGRAM_PREFIX)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="VERSION">
+      <Value>$(VERSION)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>
